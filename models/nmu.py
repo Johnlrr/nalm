@@ -62,11 +62,11 @@ class NMU(nn.Module):
         Y_train = Y_train.to(self.device)
         Y_test = Y_test.to(self.device)
 
+        print(self.device)
+
         if optimizer_algo == 'Adam': optimizer = optim.Adam(self.parameters(), lr=lr)
         elif optimizer_algo == 'SGD': optimizer = optim.SGD(self.parameters(), lr=lr)
         else: raise ValueError(f'Unknown Optimization Algorithm: {optimizer_algo}\n')
-        
-        batch = X_train.shape[0]
 
         for epoch in range(1, epochs + 1):
             self.train()
