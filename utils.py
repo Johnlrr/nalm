@@ -196,13 +196,14 @@ def run_benchmark(args):
     # 1. Tính Thresholds cho toàn bộ ranges (tránh tính lại nhiều lần)
     thresholds = {}
     print("Pre-computing thresholds...")
-    for rid in [f'U{i}' for i in range(1, 10)]:
+    rangeIds = [x.strip() for x in args.rangeId.split(',')] if args.rangeId is not None else [f'U{i}' for i in range(1, 10)]
+    for rid in rangeIds:
         thresholds[rid] = mse_threshold_for_op(args.op, rid, device, epsilon=1e-5)
 
     ModelClass = get_model_class(args.model)
 
     # 2. Loop qua các Range
-    for rid in tqdm([f'U{i}' for i in range(1, 10)], desc="Ranges"):
+    for rid in tqdm(rangeIds, desc="Ranges"):
         print()
         mse_threshold = thresholds[rid]
         

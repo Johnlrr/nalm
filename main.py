@@ -10,6 +10,7 @@ if __name__ == "__main__":
     
     # Optional args with defaults
     parser.add_argument("--n_epochs", type=int, default=50000, help="Số lượng training epochs")
+    parser.add_argument("--rangeId", type=str, default=None, help="Range ID: U1, U2, ...")
     parser.add_argument("--optimizer", type=str, default="Adam", choices=['Adam', 'SGD'], help="Thuật toán tối ưu")
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--device", type=str, default="cpu", choices=['cpu', 'gpu'], help="Thiết bị chạy")
