@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
-from models.nac import NAC
+import torch.optim as optim
 
 class NALU(nn.Module):
     """
@@ -16,59 +15,81 @@ class NALU(nn.Module):
     
     Output: y = g * a + (1 - g) * m
     """
-    def __init__(self, in_dim, out_dim, epsilon=1e-7):
+    def __init__(self, in_dim, out_dim, device=None, epsilon=1e-7):
         super().__init__()
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.epsilon = epsilon
-
-        # 1. Arithmetic Path (NAC cho cộng trừ)
-        self.nac_add = NAC(in_dim, out_dim)
-
-        # 2. Multiplicative Path (NAC cho nhân chia - hoạt động trong log space)
-        # Lưu ý: Ta dùng một instance NAC riêng biệt. 
-        # (Một số implementation cũ dùng chung weight với nac_add, nhưng benchmark chuẩn thường tách ra)
-        self.nac_log = NAC(in_dim, out_dim)
-
-        # 3. Gate Parameter (G)
-        # Học trọng số để chọn operation
-        self.G = nn.Parameter(torch.Tensor(out_dim, in_dim))
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = device
         
+        self.W_hat = nn.Parameter(torch.Tensor(in_dim, out_dim))
+        self.M_hat = nn.Parameter(torch.Tensor(in_dim, out_dim))
+        self.G = nn.Parameter(torch.Tensor(in_dim, out_dim))
+        
+        self.to(device=self.device) 
         self.reset_parameters()
 
     def reset_parameters(self):
         # Khởi tạo tham số cho Gate
         nn.init.xavier_uniform_(self.G)
-        
-        # Lưu ý: NAC con đã tự reset trong __init__ của nó, nhưng gọi lại cũng không sao
-        self.nac_add.reset_parameters()
-        self.nac_log.reset_parameters()
+        # Khởi tạo tham số cho NAC cộng/trừ
+        nn.init.xavier_uniform_(self.W_hat)
+        nn.init.xavier_uniform_(self.M_hat)
 
     def forward(self, x):
-        # --- 1. Arithmetic Path (a) ---
-        a = self.nac_add(x)
+        x = x.to(self.device)
 
-        # --- 2. Multiplicative Path (m) ---
-        # Chuyển input sang log space: log(|x| + epsilon)
-        # Epsilon cực kỳ quan trọng để tránh log(0) -> NaN
+        W = torch.tanh(self.W_hat) * torch.sigmoid(self.M_hat)
+        
+        a = torch.matmul(x, W)
+
         x_abs = torch.abs(x)
         log_x = torch.log(x_abs + self.epsilon)
-        
-        # Cho qua NAC log
-        m_log = self.nac_log(log_x)
-        
-        # Chuyển ngược lại bằng exp
+        m_log = torch.matmul(log_x, W)
         m = torch.exp(m_log)
 
-        # --- 3. Gate (g) ---
-        # g = sigmoid(x * G^T)
-        g = torch.sigmoid(F.linear(x, self.G))
+        g = torch.sigmoid(torch.matmul(x, self.G))
 
-        # --- 4. Combine ---
-        # Kết hợp kết quả dựa trên cổng
         y = g * a + (1 - g) * m
         
         return y
 
-    def extra_repr(self):
-        return 'in_dim={}, out_dim={}'.format(self.in_dim, self.out_dim)
+    def fit(self, X_train, Y_train, X_test, Y_test, 
+            lr=1e-3, epochs=50000, each_epoch=1000,
+            batch_size=128,
+            optimizer_algo='Adam', threshold=1e-5):
+        
+        X_train = X_train.to(self.device)
+        X_test = X_test.to(self.device)
+        Y_train = Y_train.to(self.device)
+        Y_test = Y_test.to(self.device)
+
+        if optimizer_algo == 'Adam': optimizer = optim.Adam(self.parameters(), lr=lr)
+        elif optimizer_algo == 'SGD': optimizer = optim.SGD(self.parameters(), lr=lr)
+        else: raise ValueError(f'Unknown Optimization Algorithm: {optimizer_algo}\n')
+
+        for epoch in range(1, epochs + 1):
+            self.train()
+        
+            Y_pred = self(X_train)
+            train_loss = 0.5 * F.mse_loss(Y_pred, Y_train)
+
+            optimizer.zero_grad()
+            train_loss.backward()
+            optimizer.step()
+
+            with torch.no_grad():
+                self.eval()
+                
+                test_loss = 0.5 * F.mse_loss(self(X_test), Y_test)
+
+                if each_epoch is not None and epoch % each_epoch == 0:
+                    print(f'Epoch: {epoch} | Loss: {train_loss} | Extrapolation Loss: {test_loss}')
+                
+                if test_loss < threshold:
+                    return epoch, True
+        
+        return epochs, False
