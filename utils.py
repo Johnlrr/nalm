@@ -249,7 +249,6 @@ def run_benchmark(args):
             'Module': args.model,
             'Operation': args.op,
             'Optimizer': args.optimizer,
-            'Batch_Size': args.batch_size,
             'Learning_Rate': args.lr,
             'Device': str(device),
             'Range': rid,
