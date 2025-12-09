@@ -14,6 +14,12 @@ from models.realnpu import RealNPU
 from models.inpu import iNPU
 
 from training.utils import *
+
+import os
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # thư mục training/
+PROJECT_DIR = os.path.dirname(ROOT_DIR)                # thư mục nalm/
+
 # =============================================================================
 # Hàm Benchmark Core
 # =============================================================================
@@ -77,8 +83,11 @@ def run_benchmark(args):
 
     # Training
     for rid in tqdm(rangeIDs, desc='Ranges'):
-        data_val = torch.tensor(np.load(f'handle_data/data/range_{rid}_val.npz')['data'], device=device)
-        data_test = torch.tensor(np.load(f'handle_data/data/range_{rid}_test.npz')['data'], device=device)
+        val_path  = os.path.join(PROJECT_DIR, f'handle_data/data/range_{rid}_val.npz')
+        test_path = os.path.join(PROJECT_DIR, f'handle_data/data/range_{rid}_test.npz')
+
+        data_val  = torch.tensor(np.load(val_path)['data'], device=device)
+        data_test = torch.tensor(np.load(test_path)['data'], device=device)
 
         X_val, Y_val = data_val[:, :2], data_val[:, op_hash[args.op][0]].unsqueeze(1)
         X_test, Y_test = data_test[:, :2], data_test[:, op_hash[args.op][0]].unsqueeze(1)
