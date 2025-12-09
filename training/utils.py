@@ -90,11 +90,39 @@ def rand_data_train(n_iterations, batch_size, op, rid, dim=2):
 # helper cho tác vụ huấn luyện và đánh giá
 # =================================================
 
-def calc_sparsity_loss(model, device):
+def calc_sparsity_loss(W):
     '''Tính sparsity loss cho tất cả tham số trong model'''
-    loss = torch.tensor(0.0, device=device) 
-    for param in model.parameters():
-        param_abs = torch.abs(param)
-        loss = torch.max(loss, torch.max(torch.minimum(param_abs, torch.abs(1 - param_abs))))
+    W_abs = torch.abs(W)
+    return torch.max(torch.min(W_abs, torch.abs(1 - W_abs)))
 
-    return loss
+
+def extract_metrics(history, threshold_inter, threshold_extra, log_interval=1000, n_last_steps=5000):
+    '''
+    Truyền vào history: Chứa data khi training trên 1 seed (inter/extra loss, sparsity_loss)
+
+    Trả về:
+        first_solved_step: Của Extrapolation data
+        best_model: Model tốt nhất (cho interpolation data) trong n_last_steps bước cuối
+        sparsity_error: Của best_model
+    '''
+    first_solved_step = None
+    best_model = None
+    sparsity_error = None
+
+    # Tìm first_solved_step
+    for i, extra_loss in enumerate(history['extrapolation_loss']):
+        if extra_loss.item() < threshold_extra:
+            first_solved_step = (i + 1) * log_interval
+            break
+    
+    # Tìm best_model và sparsity_error
+    best_inter_loss = float('inf')
+    min_step = max(0, len(history['interpolation_loss']) - (n_last_steps // log_interval))
+    for i in range(min_step, len(history['interpolation_loss'])):
+        inter_loss = history['interpolation_loss'][i]
+        if inter_loss.item() < best_inter_loss:
+            best_inter_loss = inter_loss.item()
+            best_model = i * log_interval
+            sparsity_error = history['sparsity_loss'][i].item()
+    
+    return first_solved_step, best_model, sparsity_error

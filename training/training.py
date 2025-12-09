@@ -49,10 +49,10 @@ def run_benchmark(args):
         'mul': (4, 8),
         'div': (5, 9)
     }
-    if args.rangeId is None:
+    if args.rangeID is None:
         rangeIDs = [f'U{i}' for i in range(1, 10)]
     else:
-        rangeIDs = [rid.strip() for rid in list(args.rangeId.split(','))]
+        rangeIDs = [rid.strip() for rid in list(args.rangeID.split(','))]
 
     # Hyperparameter
     lambda_base, lambda_start, lambda_end = 0, 20000, 35000
@@ -60,8 +60,9 @@ def run_benchmark(args):
     lr = 1e-3
     batch_size = args.batch_size
     n_iterations = args.n_iterations
-    log_interval = 1000
-    verbose = True
+    log_interval = args.log_interval
+    verbose = args.verbose
+    n_seeds = args.n_seeds
 
     if isinstance(modelClass, NAU): 
         lambda_base = 0.01
@@ -88,8 +89,12 @@ def run_benchmark(args):
         print()
         print(f'MSE_val: {mse_val} | MSE_test: {mse_test}')
 
+        solved_at_iters = []
+        success = 0
+        sparsity_list = []
+
         # Training
-        for _ in tqdm(range(25), desc='Seeds'):
+        for _ in tqdm(range(n_seeds), desc='Seeds'):
             print('\n\n')
             # Reinit model
             model = modelClass(in_dim=2, out_dim=1, device=device)
@@ -131,7 +136,7 @@ def run_benchmark(args):
                     with torch.no_grad():
                         history['interpolation_loss'].append(F.mse_loss(model(X_val), Y_val))
                         history['extrapolation_loss'].append(F.mse_loss(model(X_test), Y_test))
-                        history['sparsity_loss'].append(calc_sparsity_loss(model, device))
+                        history['sparsity_loss'].append(model.sparsity_loss())
 
                         if verbose:
                             print(f'Interation: {iter} | Train Loss: {total_loss} | ',
@@ -139,3 +144,26 @@ def run_benchmark(args):
                                   f'Extrapolation Loss: {history['extrapolation_loss'][-1]}')
                 
             # Post-process
+            solved_at_iter, best_model, sparsity_error = extract_metrics(history, threshold_inter=mse_val.item(),
+                                                                         threshold_extra=mse_test.item(),
+                                                                         log_interval=log_interval)
+            if solved_at_iter is not None:
+                solved_at_iters.append(solved_at_iter)
+                success += 1
+                sparsity_list.append(sparsity_error)
+
+        success_rate = success / n_seeds
+        speed_convergence_mean = (sum(solved_at_iters) / len(solved_at_iters)) if len(solved_at_iters) > 0 else None
+        sparsity_error_mean = (sum(sparsity_list) / len(sparsity_list)) if len(sparsity_list) > 0 else None
+
+        results.append({
+            'Model': args.model,
+            'Operation': args.op,
+            'Range': rid,
+            'Success_Rate': success_rate,
+            'Speed_Convergence_Mean': speed_convergence_mean,
+            'Sparsity_Error_Mean': sparsity_error_mean
+        })
+
+    df_results = pd.DataFrame(results)
+    return df_results

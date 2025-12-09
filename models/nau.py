@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import math
+from training.utils import calc_sparsity_loss
 
 class NAU(nn.Module):
     def __init__(self, in_dim, out_dim, device=None):
@@ -21,6 +22,11 @@ class NAU(nn.Module):
         std = math.sqrt(2.0 / (self.in_dim + self.out_dim))
         r = min(0.5, math.sqrt(3.0) * std)
         torch.nn.init.uniform_(self.W, -r, r)
+
+    def sparsity_loss(self):
+        W = torch.clamp(self.W, -1, 1)
+
+        return calc_sparsity_loss(W)
 
     def regularization_loss(self):
         W_abs = torch.abs(self.W)
