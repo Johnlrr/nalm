@@ -2,17 +2,19 @@ import torch
 import torch.nn as nn
 import numpy as np
 import scipy.optimize
+from training.utils import calc_sparsity_loss
 
 # =================================================
 # Khởi tạo trọng số trong NALU, G-NALU, NAC
 # =================================================
 
 def nac_w_variance(r):
-    """Calculates the variance of W.
+    """
+    Calculates the variance of W.
 
-    Asumming \hat{w} and \hat{m} are sampled from a uniform
+    Asumming hat{w} and hat{m} are sampled from a uniform
     distribution with range [-r, r], this is the variance
-    of w = tanh(\hat{w})*sigmoid(\hat{m}).
+    of w = tanh(hat{w})*sigmoid(hat{m}).
     """
     if (r == 0):
         return 0
@@ -57,6 +59,11 @@ class NALU(nn.Module):
         r = nac_w_optimal_r(self.in_dim, self.out_dim)
         torch.nn.init.uniform_(self.W_hat, a=-r, b=r)
         torch.nn.init.uniform_(self.M_hat, a=-r, b=r)
+
+    def sparsity_loss(self):
+        W = torch.tanh(self.W_hat) * torch.sigmoid(self.M_hat)
+        G = torch.sigmoid(self.G)
+        return torch.max(calc_sparsity_loss(W), calc_sparsity_loss(G))
 
     def regularization_loss(self):
         return 0

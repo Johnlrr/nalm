@@ -1,5 +1,7 @@
 import torch
 import numpy as np
+from scipy.stats import beta, t
+import math
 
 # =================================================
 # Generate Data cho từng phép toán và range config
@@ -126,3 +128,87 @@ def extract_metrics(history, threshold_inter, threshold_extra, log_interval=1000
             sparsity_error = history['sparsity_loss'][i].item()
     
     return first_solved_step, best_model, sparsity_error
+
+# 1) SUCCESS RATE – Binomial (Clopper–Pearson, bất đối xứng)
+def ci_success_rate(success, n_seeds, alpha=0.05):
+    """
+    success: số seed thành công
+    n_seeds: tổng số seed
+    return: (mean, plus, minus) theo tỷ lệ 100%
+    """
+    if n_seeds == 0:
+        return None, None, None
+
+    p_hat = success / n_seeds
+
+    if success == 0:
+        # [0, 1 - (alpha/2)^(1/n)]
+        lower = 0.0
+        upper = 1 - (alpha/2) ** (1.0 / n_seeds)
+    elif success == n_seeds:
+        # [(alpha/2)^(1/n), 1]
+        lower = (alpha/2) ** (1.0 / n_seeds)
+        upper = 1.0
+    else:
+        # Clopper–Pearson chung
+        lower = beta.ppf(alpha/2, success, n_seeds - success + 1)
+        upper = beta.ppf(1 - alpha/2, success + 1, n_seeds - success)
+
+    plus  = max(0.0, upper - p_hat)
+    minus = max(0.0, p_hat - lower)
+    return p_hat * 100, plus * 100, minus * 100
+
+
+# 2) SPEED CONVERGENCE – dùng t-CI quanh mean
+def ci_speed_convergence(solved_at_iters, alpha=0.05):
+    """
+    solved_at_iters: list các iteration step mà seed giải được (bỏ NA trước khi gọi)
+    return: (mean, plus, minus)
+    """
+    vals = np.array(solved_at_iters, dtype=float)
+    vals = vals[~np.isnan(vals)]
+    n = len(vals)
+    if n == 0:
+        return None, None, None
+    if n == 1:
+        return vals[0], 0.0, 0.0
+
+    mean = float(np.mean(vals))
+    std  = float(np.std(vals, ddof=1))
+    t_crit = t.ppf(1 - alpha/2, df=n-1)
+    half = t_crit * std / math.sqrt(n)
+
+    plus  = half
+    minus = half
+    return mean, plus, minus
+
+
+# 3) SPARSITY ERROR – t-CI trên mean, xử lý biên 0
+def ci_sparsity_error(sparsity_list, alpha=0.05):
+    """
+    sparsity_list: list sparsity_error mỗi seed (>=0)
+    return: (mean, plus, minus)
+    """
+    vals = np.array(sparsity_list, dtype=float)
+    vals = vals[~np.isnan(vals)]
+    n = len(vals)
+    if n == 0:
+        return None, None, None
+
+    mean = float(np.mean(vals))
+
+    # Tất cả bằng 0 -> không có dao động
+    if np.allclose(vals, 0.0):
+        return mean, 0.0, 0.0
+
+    if n == 1:
+        return mean, 0.0, 0.0
+
+    std   = float(np.std(vals, ddof=1))
+    t_crit = t.ppf(1 - alpha/2, df=n-1)
+    half = t_crit * std / math.sqrt(n)
+
+    # Không cho lower < 0
+    minus = min(half, mean)
+    plus  = half
+    return mean, plus, minus

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from training.utils import calc_sparsity_loss
 
 class RealNPU(nn.Module):
     def __init__(self, in_dim, out_dim, device=None, epsilon=1e-36):
@@ -23,6 +24,11 @@ class RealNPU(nn.Module):
         self.G.data /= 2
 
         nn.init.xavier_uniform_(self.W_real)
+
+    def sparsity_loss(self):
+        W_real = torch.clamp(self.W_real, 0.0, 1.0)
+        G = torch.clamp(self.G, 0.0, 1.0)
+        return torch.max(calc_sparsity_loss(W_real), calc_sparsity_loss(G))
 
     def regularization_loss(self):
         return torch.sum(torch.abs(self.W_real) + torch.abs(self.G))

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import math
+from training.utils import calc_sparsity_loss
 
 class NMU(nn.Module):
     def __init__(self, in_dim, out_dim, device=None):
@@ -21,6 +22,10 @@ class NMU(nn.Module):
         std = math.sqrt(0.25)
         r = min(0.25, math.sqrt(3.0) * std)
         torch.nn.init.uniform_(self.W, 0.5 - r, 0.5 + r)
+
+    def sparsity_loss(self):
+        W = torch.clamp(self.W, 0.0, 1.0)
+        return calc_sparsity_loss(W)
 
     def regularization_loss(self):
         W_abs = torch.abs(self.W)

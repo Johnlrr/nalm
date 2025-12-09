@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from training.utils import calc_sparsity_loss
 
 class iNPU(nn.Module):
     def __init__(self, in_dim, out_dim, device=None, epsilon=1e-36):
@@ -20,6 +21,10 @@ class iNPU(nn.Module):
 
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.W)
+
+    def sparsity_loss(self):
+        # W = torch.clamp(self.W, min=0, max=1)
+        return calc_sparsity_loss(self.W)
 
     def regularization_loss(self):
         return 0

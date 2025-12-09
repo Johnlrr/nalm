@@ -152,17 +152,24 @@ def run_benchmark(args):
                 success += 1
                 sparsity_list.append(sparsity_error)
 
-        success_rate = success / n_seeds
-        speed_convergence_mean = (sum(solved_at_iters) / len(solved_at_iters)) if len(solved_at_iters) > 0 else None
-        sparsity_error_mean = (sum(sparsity_list) / len(sparsity_list)) if len(sparsity_list) > 0 else None
+        # Tính toán kết quả và lưu lại
+        sr, sr_plus, sr_minus = ci_success_rate(success, n_seeds)
+        sc, sc_plus, sc_minus = ci_speed_convergence(solved_at_iters)
+        se, se_plus, se_minus = ci_sparsity_error(sparsity_list)
 
         results.append({
             'Model': args.model,
             'Operation': args.op,
             'Range': rid,
-            'Success_Rate': success_rate,
-            'Speed_Convergence_Mean': speed_convergence_mean,
-            'Sparsity_Error_Mean': sparsity_error_mean
+            'Success_Rate': sr,
+            'Success_Rate_Plus': sr_plus,
+            'Success_Rate_Minus': sr_minus,
+            'Speed_Convergence_Mean': sc,
+            'Speed_Convergence_Plus': sc_plus,
+            'Speed_Convergence_Minus': sc_minus,
+            'Sparsity_Error_Mean': se,
+            'Sparsity_Error_Plus': se_plus,
+            'Sparsity_Error_Minus': se_minus
         })
 
     df_results = pd.DataFrame(results)

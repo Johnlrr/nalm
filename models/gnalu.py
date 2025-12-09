@@ -1,7 +1,6 @@
 import torch
-import torch.nn as nn
 from models.nalu import NALU
-
+from training.utils import calc_sparsity_loss
 
 class GNALU(NALU):
     def __init__(self, in_dim, out_dim, device=None, epsilon=1e-7):
@@ -25,6 +24,11 @@ class GNALU(NALU):
         x = x.to(self.device)
 
         return 1 / (torch.pow(self.phi, -x) + 1)
+
+    def sparsity_loss(self):
+        W = self.golden_tanh(self.W_hat) * self.golden_sigmoid(self.M_hat)
+        G = torch.sigmoid(self.G)
+        return torch.max(calc_sparsity_loss(W), calc_sparsity_loss(G))
 
     def regularization_loss(self):
         return 0

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from training.utils import calc_sparsity_loss
 
 class NAC(nn.Module):
     def __init__(self, in_dim, out_dim, device=None):
@@ -21,6 +22,10 @@ class NAC(nn.Module):
     def reset_parameters(self):
         nn.init.xavier_uniform_(self.W_hat)
         nn.init.xavier_uniform_(self.M_hat)
+
+    def sparsity_loss(self):
+        W = torch.tanh(self.W_hat) * torch.sigmoid(self.M_hat)
+        return calc_sparsity_loss(W)
 
     def regularization_loss(self):
         return 0

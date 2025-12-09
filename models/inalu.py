@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from training.utils import calc_sparsity_loss
 
 class iNALU(nn.Module):
     """
@@ -32,6 +33,15 @@ class iNALU(nn.Module):
         
         self.to(device=self.device)
         self.reset_parameters()
+
+    def sparsity_loss(self):
+        W_add = torch.tanh(self.W_hat_add) * torch.sigmoid(self.M_hat_add)
+        W_mul = torch.tanh(self.W_hat_mul) * torch.sigmoid(self.M_hat_mul)
+        G = torch.sigmoid(self.G)
+        loss_add = calc_sparsity_loss(W_add)
+        loss_mul = calc_sparsity_loss(W_mul)
+        loss_g = calc_sparsity_loss(G)
+        return torch.max(torch.max(loss_add, loss_mul), loss_g)
 
     def regularization_loss(self):
         reg_loss = 0.0
