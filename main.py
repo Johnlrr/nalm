@@ -25,7 +25,6 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=str, default="benchmark_results.csv", help="File output csv")
 
     args = parser.parse_args()
-    print(args)
     # Chạy benchmark
     df = run_benchmark(args)
     

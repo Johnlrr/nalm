@@ -67,7 +67,6 @@ def run_benchmark(args):
     batch_size = args.batch_size
     n_iterations = args.n_iterations
     log_interval = args.log_interval
-    print(args.verbose)
     verbose = args.verbose
     n_seeds = args.n_seeds
 
