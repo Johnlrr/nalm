@@ -70,17 +70,17 @@ def run_benchmark(args):
     verbose = args.verbose
     n_seeds = args.n_seeds
 
-    if isinstance(modelClass, NAU): 
+    if args.model.upper() == 'NAU': 
         lambda_base = 0.01
-    elif isinstance(modelClass, NMU): 
+    elif args.model.upper() == 'NMU': 
         lambda_base = 10
-    elif isinstance(modelClass, (NPU, RealNPU)):
+    elif args.model.upper() in ['NPU', 'REALNPU']:
         lr = 5e-3
         if args.op == 'mul':
             beta_start, beta_end = 1e-7, 1e-5
         elif args.op == 'div':
             beta_start, beta_end = 1e-9, 1e-7
-
+    
     # Training
     for rid in tqdm(rangeIDs, desc='Ranges'):
         val_path  = os.path.join(PROJECT_DIR, f'handle_data/data/range_{rid}_val.npz')
@@ -135,7 +135,7 @@ def run_benchmark(args):
                 total_loss = (F.mse_loss(model(X), Y) + 
                               lambda_current * model.regularization_loss() + 
                               beta_current * model.regularization_loss())
-                
+
                 optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
@@ -153,11 +153,12 @@ def run_benchmark(args):
                                 f"Validation Loss: {history['interpolation_loss'][-1]} | "
                                 f"Extrapolation Loss: {history['extrapolation_loss'][-1]}"
                             )
+                            print(model.W)
 
                         # Early stopping nếu 5000 iterations gần đây không thay đổi nhiều (interpolation)
                         if len(history['interpolation_loss']) > 5000 // log_interval:
                             recent_losses = history['interpolation_loss'][-(5000 // log_interval):]
-                            if max(recent_losses) - min(recent_losses) < 1e-10:
+                            if max(recent_losses) - min(recent_losses) < min(1e-6, mse_val.item() / 100):
                                 if verbose is True:
                                     print(f"Early stopping at iteration {iter} due to convergence.")
                                 break

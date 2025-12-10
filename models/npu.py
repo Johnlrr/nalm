@@ -16,7 +16,7 @@ class NPU(nn.Module):
 
         self.W_real = nn.Parameter(torch.Tensor(in_dim, out_dim))
         self.W_imag = nn.Parameter(torch.Tensor(in_dim, out_dim))
-        self.G = nn.Parameter(torch.Tensor(in_dim, out_dim))
+        self.G = nn.Parameter(torch.Tensor(in_dim))
         
         self.to(device=self.device)
         self.reset_parameters()
@@ -42,10 +42,9 @@ class NPU(nn.Module):
         x = x.to(self.device)
 
         G = torch.clamp(self.G, 0.0, 1.0)
-        R = torch.einsum('ni,io->nio', torch.abs(x) + self.epsilon, G) + (1 - G).unsqueeze(0)
-        K = torch.pi * torch.einsum('ni,io->nio', (x < 0).float(), G)
+        R = torch.einsum('ni,i->ni', torch.abs(x) + self.epsilon, G) + (1 - G).unsqueeze(0)
+        K = torch.pi * torch.einsum('ni,i->ni', (x < 0).float(), G)
 
-        A = torch.einsum('nio,io->no', torch.log(R), self.W_real) - torch.einsum('nio,io->no', K, self.W_imag)
-        B = torch.einsum('nio,io->no', torch.log(R), self.W_imag) + torch.einsum('nio,io->no', K, self.W_real)
-
+        A = torch.einsum('ni,io->no', torch.log(R), self.W_real) - torch.einsum('ni,io->no', K, self.W_imag)
+        B = torch.einsum('ni,io->no', torch.log(R), self.W_imag) + torch.einsum('ni,io->no', K, self.W_real)
         return torch.exp(A) * torch.cos(B)

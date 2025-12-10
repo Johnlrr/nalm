@@ -14,7 +14,7 @@ class RealNPU(nn.Module):
             self.device = device
 
         self.W_real = nn.Parameter(torch.Tensor(in_dim, out_dim))
-        self.G = nn.Parameter(torch.Tensor(in_dim, out_dim))
+        self.G = nn.Parameter(torch.Tensor(in_dim))
         
         self.to(device=self.device)
         self.reset_parameters()
@@ -37,10 +37,9 @@ class RealNPU(nn.Module):
         x = x.to(self.device)
 
         G = torch.clamp(self.G, 0.0, 1.0)
-        R = torch.einsum('ni,io->nio', torch.abs(x) + self.epsilon, G) + (1 - G).unsqueeze(0)
-        K = torch.pi * torch.einsum('ni,io->nio', (x < 0).float(), G)
+        R = torch.einsum('ni,i->ni', torch.abs(x) + self.epsilon, G) + (1 - G).unsqueeze(0)
+        K = torch.pi * torch.einsum('ni,i->ni', (x < 0).float(), G)
 
-        C = torch.einsum('nio,io->no', torch.log(R), self.W_real)
-        D = torch.einsum('nio,io->no', K, self.W_real)
-
+        C = torch.einsum('ni,io->no', torch.log(R), self.W_real)
+        D = torch.einsum('ni,io->no', K, self.W_real)
         return torch.exp(C) * torch.cos(D)

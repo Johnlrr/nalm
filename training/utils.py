@@ -27,7 +27,7 @@ def apply_op(op, x1, x2, epsilon):
     elif op == 'mul':
         return (x1 * x2) * (1 - epsilon)**2
     elif op == 'div':
-        assert torch.all(x2 != 0)
+        x2[x2 == 0] = 1e-10
         return x1 / x2 * (1 - epsilon) / (1 + epsilon)
     else:
         raise ValueError(f"Unknown op: {op}")
