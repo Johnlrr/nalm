@@ -67,6 +67,7 @@ def run_benchmark(args):
     batch_size = args.batch_size
     n_iterations = args.n_iterations
     log_interval = args.log_interval
+    print(args.verbose)
     verbose = args.verbose
     n_seeds = args.n_seeds
 
@@ -147,7 +148,7 @@ def run_benchmark(args):
                         history['extrapolation_loss'].append(F.mse_loss(model(X_test), Y_test))
                         history['sparsity_loss'].append(model.sparsity_loss())
 
-                        if verbose:
+                        if verbose is True:
                             print(
                                 f"Interation: {iter} | Train Loss: {total_loss} | "
                                 f"Validation Loss: {history['interpolation_loss'][-1]} | "

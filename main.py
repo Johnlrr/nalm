@@ -1,5 +1,9 @@
 import argparse
 from training.training import *
+import os
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))  # thư mục training/
+PROJECT_DIR = os.path.dirname(ROOT_DIR)                # thư mục nalm/
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="NALM Benchmark Runner")
@@ -16,12 +20,12 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--n_seeds", type=int, default=25, help="Số lượng seeds khi benchmark")
     parser.add_argument("--device", type=str, default="cpu", choices=['cpu', 'gpu'], help="Thiết bị chạy")
-    parser.add_argument("--verbose", type=bool, default=False, choices=[True, False], help='In ra log khi chạy')
+    parser.add_argument("--verbose", action="store_true", help="In ra log khi chạy")
     parser.add_argument("--log_interval", type=int, default=1000, help='Khoảng cách giữa các lần đo lường')
     parser.add_argument("--output", type=str, default="benchmark_results.csv", help="File output csv")
 
     args = parser.parse_args()
-
+    print(args)
     # Chạy benchmark
     df = run_benchmark(args)
     
