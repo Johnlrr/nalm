@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
+from training.utils import calc_sparsity_loss
 
 class iNALU(nn.Module):
     """
@@ -35,6 +34,15 @@ class iNALU(nn.Module):
         self.to(device=self.device)
         self.reset_parameters()
 
+    def sparsity_loss(self):
+        W_add = torch.tanh(self.W_hat_add) * torch.sigmoid(self.M_hat_add)
+        W_mul = torch.tanh(self.W_hat_mul) * torch.sigmoid(self.M_hat_mul)
+        G = torch.sigmoid(self.G)
+        loss_add = calc_sparsity_loss(W_add)
+        loss_mul = calc_sparsity_loss(W_mul)
+        loss_g = calc_sparsity_loss(G)
+        return torch.max(torch.max(loss_add, loss_mul), loss_g)
+
     def regularization_loss(self):
         reg_loss = 0.0
         reg_loss += torch.mean(torch.clamp(torch.minimum(-self.W_hat_add, self.W_hat_add) + self.t, min=0))
@@ -44,12 +52,20 @@ class iNALU(nn.Module):
         return reg_loss / self.t
 
     def reset_parameters(self):
-        # Khởi tạo Xavier
-        nn.init.xavier_uniform_(self.W_hat_add)
-        nn.init.xavier_uniform_(self.M_hat_add)
-        nn.init.xavier_uniform_(self.W_hat_mul)
-        nn.init.xavier_uniform_(self.M_hat_mul)
-        nn.init.xavier_uniform_(self.G)
+        # see https://github.com/daschloer/inalu/blob/e41d80d3506ac0bf4a2971c262003468feca187d/nalu_architectures.py#L4
+        mu_g = 0.0
+        mu_m = 0.5
+        mu_w = 0.88
+
+        sd_g = 0.2
+        sd_m = 0.2
+        sd_w = 0.2
+
+        torch.nn.init.normal_(self.W_hat_add, mean=mu_w, std=sd_w)
+        torch.nn.init.normal_(self.M_hat_add, mean=mu_m, std=sd_m)
+        torch.nn.init.normal_(self.W_hat_mul, mean=mu_w, std=sd_w)
+        torch.nn.init.normal_(self.M_hat_mul, mean=mu_m, std=sd_m)
+        torch.nn.init.normal_(self.G, mean=mu_g, std=sd_g)
 
     def forward(self, x):
         x = x.to(self.device)
@@ -69,39 +85,3 @@ class iNALU(nn.Module):
         # Combine
         y = g * a + (1 - g) * msv * m
         return y
-
-    def fit(self, X_train, Y_train, X_test, Y_test, 
-            lr=1e-3, epochs=50000, each_epoch=1000,
-            optimizer_algo='Adam', threshold=1e-5):
-        
-        X_train = X_train.to(self.device)
-        X_test = X_test.to(self.device)
-        Y_train = Y_train.to(self.device)
-        Y_test = Y_test.to(self.device)
-
-        if optimizer_algo == 'Adam': optimizer = optim.Adam(self.parameters(), lr=lr)
-        elif optimizer_algo == 'SGD': optimizer = optim.SGD(self.parameters(), lr=lr)
-        else: raise ValueError(f'Unknown Optimization Algorithm: {optimizer_algo}\n')
-    
-        for epoch in range(1, epochs + 1):
-            self.train()
-            
-            Y_pred = self(X_train)
-            train_loss = 0.5 * F.mse_loss(Y_pred, Y_train) + self.regularization_loss()
-
-            optimizer.zero_grad()
-            train_loss.backward()
-            optimizer.step()
-
-            with torch.no_grad():
-                self.eval()
-                
-                test_loss = 0.5 * F.mse_loss(self(X_test), Y_test)
-
-                if each_epoch is not None and epoch % each_epoch == 0:
-                    print(f'Epoch: {epoch} | Loss: {train_loss} | Extrapolation Loss: {test_loss}')
-                
-                if test_loss < threshold:
-                    return epoch, True
-        
-        return epochs, False
