@@ -11,9 +11,10 @@ Dự án được tổ chức theo hướng module hóa, tách biệt dữ liệ
 
 ```text
 my_nalm_repro/
-├── data/
+├── handle_data/
 │   ├── __init__.py
-│   └── generator.py         # Sinh dữ liệu nội suy (Train) và ngoại suy (Test) theo Table 3
+│   ├── generate_data.py     # Sinh dữ liệu nội suy (Validation) và ngoại suy (Test) theo Table 3
+│   └── data                 # Data dùng cho Validation và Test được generate cố định, đi kèm với mô hình **epsilon-perfect** (**Evaluation** của phần **6.5**) 
 ├── models/
 │   ├── __init__.py
 │   ├── nac.py               # Neural Accumulator
@@ -23,10 +24,12 @@ my_nalm_repro/
 │   ├── nau.py               # Neural Addition Unit (SOTA cho cộng/trừ)
 │   ├── nmu.py               # Neural Multiplication Unit (SOTA cho nhân)
 │   ├── npu.py               # Neural Power Unit (Complex)
-│   └── realnpu.py           # Real NPU (SOTA cho chia & số âm)
+│   ├── realnpu.py           # Real NPU (SOTA cho chia & số âm)
+│   └── iNPU.py              # Improved NPU với độ chính xác cao cho phép nhân, chia
 ├── training/
 │   ├── __init__.py
-│   └── regularization.py    # Scheduler & Loss phạt cho NAU, NMU, NPU (Table 6, 7)
+│   ├── utils.py             # Chứa các hàm tiện ích cho tạo data, tính khoảng tin cậy
+│   └── training.py          # Chứa hàm chạy benchmark cho các model, setup các tham số theo paper
 ├── results/                 # Chứa file kết quả CSV sau khi chạy
 ├── logs/                    # Chứa log chi tiết khi chạy script hàng loạt
 ├── main.py                  # Entry point chính để chạy huấn luyện
@@ -44,14 +47,22 @@ pip install -r requirements.txt
 Bạn có thể chạy benchmark cho một mô hình cụ thể bằng lệnh python main.py
 
 Các tham số chính:
-    - --model: Tên mô hình (nac, nalu, inalu, gnalu, nau, nmu, npu, realnpu)
-    - --op: Phép toán (add, sub, mul, div)
-    - --range: Vùng dữ liệu (U1 đến U9). U1 là khó nhất (bao gồm số âm lớn)
-    - --gpu: Sử dụng GPU để train (khuyên dùng)
+    - --model: Tên mô hình (nac, nalu, inalu, gnalu, nau, nmu, npu, realnpu, inpu).
+    - --op: Phép toán (add, sub, mul, div).
+    - --rangeID: Vùng dữ liệu (U1 đến U9).
+    - --optimizer: Bộ tối ưu (Adam hoặc SGD) (Mặc định `Adam`).
+    - --device: Thiết bị để chạy (cpu hoặc gpu) (Mặc định `cpu`).
+    - --n_iterations: Số lần lặp lại với mỗi seed (Mặc định `50000`).
+    - --n_seeds: Số seed khác nhau để chạy (Mặc định `25`).
+    - --batch_size: Kích thước batch (Mặc định `128`).
+    - --lr: Learning rate (Mặc định `1e-3`).
+    - --verbose: Hiển thị log chi tiết (Mặc định `False`).
+    - --log_interval: Khoảng thời gian log cũng như tính toán (Mặc định `1000`).
+    - --output: Tên file kết quả đầu ra (Mặc định `results/benchmark_results.csv`).
 
 Ví dụ:
 ```text
-python main.py --model nau --op add --range U1 --gpu
+python main.py --model nau --op add --range U1 --device cpu --n_iterations 50000 --n_seeds 25 --batch_size 128 --lr 1e-3 --verbose --log_interval 1000 --output results/benchmark_results.csv
 ```
 
 ## Chạy toàn bộ Benchmark

@@ -22,7 +22,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cpu", choices=['cpu', 'gpu'], help="Thiết bị chạy")
     parser.add_argument("--verbose", action="store_true", help="In ra log khi chạy")
     parser.add_argument("--log_interval", type=int, default=1000, help='Khoảng cách giữa các lần đo lường')
-    parser.add_argument("--output", type=str, default="benchmark_results.csv", help="File output csv")
+    parser.add_argument("--output", type=str, default="results/benchmark_results.csv", help="File output csv")
 
     args = parser.parse_args()
     # Chạy benchmark
